@@ -32,8 +32,4 @@ class TaskStorage{
     
     return taskList;
   }
-
-  static void clear(){
-    prefs.clear();
-  }
 }

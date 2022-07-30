@@ -23,7 +23,13 @@ class _MainPageState extends State<MainPage>{
   late double width;
   late StateSetter taskStatusFilterState;
 
-  bool showCompleted = false;
+
+  // Values for radio list tiles
+  String allTasks = 'all_tasks';
+  String completedTasks = 'completed_tasks';
+  String incompleteTasks = 'incomplete_tasks';
+
+  String groupValue = 'incomplete_tasks';
 
 
   // Define colors of task
@@ -38,10 +44,8 @@ class _MainPageState extends State<MainPage>{
   TextEditingController titleFieldController = TextEditingController();
   TextEditingController descriptionFieldController = TextEditingController();
 
-
   // Define tasks list
-  List<TaskModel> completedTasks = [];
-  List<TaskModel> incompleteTasks = [];
+  List<TaskModel> tasksList = [];
 
   @override
   void initState() {
@@ -73,58 +77,101 @@ class _MainPageState extends State<MainPage>{
         width = constraints.maxWidth; // Getting device screen max width
         return Scaffold(
           appBar: AppBar(
-            systemOverlayStyle: SystemUiOverlayStyle.light, // Set the toolbar color to white
             title: const Text('To Do App'),
+            systemOverlayStyle: SystemUiOverlayStyle.light, // Set the toolbar color to white
             backgroundColor: Colors.tealAccent[400],
             centerTitle: false,
             elevation: 0,
             actions: [
-              StatefulBuilder(
-                builder: (context, setState){
-                  taskStatusFilterState = setState;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: Center(
-                      child: Text(showCompleted ? 'Completed' : 'Incomplete', style: const TextStyle(fontSize: 18)),
-                    ),
-                  );
-                },
+              Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Center(
+                  child: IconButton(
+                    icon: Icon(Icons.filter_list_alt),
+                    onPressed: (){
+                      // Dialog to filter tasks
+                      showDialog(
+                        context: context,
+                        builder: (context){
+                          return StatefulBuilder(
+                            builder: (context, dialogState){
+                              return SimpleDialog(
+                                title: Text('Filter Tasks'),
+                                children: [
+                                  RadioListTile<String>(
+                                    title: Text('All Tasks'),
+                                    value: allTasks,
+                                    groupValue: groupValue,
+                                    activeColor: Colors.tealAccent[400],
+                                    onChanged: (value){
+                                      dialogState((){
+                                        groupValue = value!;
+                                      });
+                                    },
+                                  ),
+                                  RadioListTile<String>(
+                                    title: Text('Completed Tasks'),
+                                    value: completedTasks,
+                                    groupValue: groupValue,
+                                    activeColor: Colors.tealAccent[400],
+                                    onChanged: (value){
+                                      dialogState((){
+                                        groupValue = value!;
+                                      });
+                                    },
+                                  ),
+                                  RadioListTile<String>(
+                                    title: Text('Incomplete Tasks'),
+                                    value: incompleteTasks,
+                                    groupValue: groupValue,
+                                    activeColor: Colors.tealAccent[400],
+                                    onChanged: (value){
+                                      dialogState((){
+                                        groupValue = value!;
+                                      });
+                                    },
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight, // Setting the Apply button to right in the dialog
+                                    child: Padding(
+                                      padding: EdgeInsets.only(right: 10),
+                                      child: TextButton(
+                                        child: Text('OK', style: TextStyle(fontSize: 17, color: Colors.tealAccent[400])),
+                                        onPressed: (){
+                                          setState((){});
+                                          Navigator.pop(context);
+                                        }
+                                      ),
+                                    )
+                                  )
+                                ],
+                              );
+                            },
+                          );
+                        }
+                      );
+                    },
+                  )
+                ),
               )
             ],
           ),
           body: mainBody(),
-          floatingActionButton: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                margin: const EdgeInsets.only(left: 35),
-                child: FloatingActionButton(
-                  onPressed: (){
-                    setState((){
-                      showCompleted = !showCompleted;
-                    });
-                  },
-                  backgroundColor: Colors.tealAccent[400],
-                  child: const Icon(Icons.filter_list_alt),
-                ),
-              ),
-              FloatingActionButton(
-                onPressed: (){
+          floatingActionButton: FloatingActionButton(
+            onPressed: (){
 
-                  // Showing add task bottom sheet
-                  showCupertinoModalBottomSheet(
-                      context: context,
-                      duration: const Duration(milliseconds: 250),
-                      builder: (context){
-                        return addTaskWidget(null, false, 0);
-                      }
-                  );
-                },
-                backgroundColor: Colors.tealAccent[400],
-                child: const Icon(Icons.add),
-              ),
-            ],
-          )
+              // Showing add task bottom sheet
+              showCupertinoModalBottomSheet(
+                  context: context,
+                  duration: const Duration(milliseconds: 250),
+                  builder: (context){
+                    return addTaskWidget(null, false, 0);
+                  }
+              );
+            },
+            backgroundColor: Colors.tealAccent[400],
+            child: const Icon(Icons.add),
+          ),
         );
       },
     );
@@ -138,11 +185,16 @@ class _MainPageState extends State<MainPage>{
       margin: const EdgeInsets.only(left: 10, right: 10, top: 10),
       child: Consumer<TaskProvider>( // Consumer is updating its child state when notifyListeners() is called
         builder: (context, viewModel, child){
-          List<TaskModel> tasksList = [];
-          if(!showCompleted){
-            tasksList = viewModel.getIncompleteTasks;
-          }else{
-            tasksList = viewModel.getCompletedTasks;
+          switch(groupValue){
+            case 'all_tasks':
+              tasksList = viewModel.getAllTasks;
+              break;
+            case 'completed_tasks':
+              tasksList = viewModel.getCompletedTasks;
+              break;
+            case 'incomplete_tasks':
+              tasksList = viewModel.getIncompleteTasks;
+              break;
           }
           return ListView.separated(
             itemCount: tasksList.length,
@@ -156,20 +208,20 @@ class _MainPageState extends State<MainPage>{
                   endActionPane: ActionPane(
                     extentRatio: 1,
                     dragDismissible: true,
-                    motion: DrawerMotion(),
+                    motion: const DrawerMotion(),
                     children: [
                       SlidableAction(
                           icon: task.getCompleted ? Icons.close_sharp : CupertinoIcons.checkmark,
                           backgroundColor: task.getCompleted ? Colors.deepOrange : Colors.green,
                           foregroundColor: Colors.white,
-                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                          borderRadius: const BorderRadius.all(Radius.circular(10)),
                           label: task.getCompleted ? 'Not completed' : 'Complete',
                           onPressed: (context){
                             // Setting task status to completed
                             if(task.getCompleted){
-                              Provider.of<TaskProvider>(context, listen: false).setCompleted(false, index);
+                              Provider.of<TaskProvider>(context, listen: false).setCompleted(false, task);
                             }else{
-                              Provider.of<TaskProvider>(context, listen: false).setCompleted(true, index);
+                              Provider.of<TaskProvider>(context, listen: false).setCompleted(true, task);
                             }
                           }
                       ),
@@ -197,7 +249,7 @@ class _MainPageState extends State<MainPage>{
                         label: 'Delete',
                         onPressed: (context){
                           // Deleting task
-                          Provider.of<TaskProvider>(context, listen: false).deleteTask(index);
+                          Provider.of<TaskProvider>(context, listen: false).deleteTask(task);
                         },
                       ),
                     ],
@@ -312,7 +364,7 @@ class _MainPageState extends State<MainPage>{
                                 isCompleted: task!.getCompleted
                             );
 
-                            Provider.of<TaskProvider>(context, listen: false).editTask(edited, index);
+                            Provider.of<TaskProvider>(context, listen: false).editTask(task, edited, index);
 
                             // Update state of the app
                             Navigator.pop(context); // Close the sheet
